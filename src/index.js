@@ -119,11 +119,17 @@ function registerConfigCommands() {
   if (!fs.existsSync(configDir)) return;
 
   try {
+    // Set API key command
     const setKeyCommand = require('./commands/config/set-key');
     const command = new setKeyCommand();
     command.register(program);
+    
+    // List projects command
+    const listProjectsCommand = require('./commands/config/list-projects');
+    const listCommand = new listProjectsCommand();
+    listCommand.register(program);
   } catch (error) {
-    console.warn(chalk.yellow('Warning: Could not load config set-key command:', error.message));
+    console.warn(chalk.yellow('Warning: Could not load config commands:', error.message));
   }
 }
 

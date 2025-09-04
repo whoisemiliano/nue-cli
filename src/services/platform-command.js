@@ -1,4 +1,6 @@
 const { checkAndPromptForApiKey } = require('../utils/apiKeyUtils');
+const { getProjectApiKey } = require('../utils/projectApiKeyUtils');
+const ApiClient = require('../utils/apiClient');
 
 class PlatformCommandBuilder {
   constructor(platform, resource, action) {
@@ -112,6 +114,7 @@ class PlatformCommandBuilder {
     // Add common options based on the action type
     if (this.action === 'create' || this.action === 'activate') {
       return this
+        .option('--project <name>', 'Project name to use')
         .option('--sandbox', 'Use sandbox environment')
         .option('--verbose', 'Show detailed output')
         .option('--output <file>', 'Output file path')
@@ -119,11 +122,13 @@ class PlatformCommandBuilder {
         .option('--file <path>', 'Input file path');
     } else if (this.action === 'get') {
       return this
+        .option('--project <name>', 'Project name to use')
         .option('--sandbox', 'Use sandbox environment')
         .option('--verbose', 'Show detailed output')
         .option('--output <file>', 'Output file path');
     } else if (this.action === 'query') {
       return this
+        .option('--project <name>', 'Project name to use')
         .option('--sandbox', 'Use sandbox environment')
         .option('--verbose', 'Show detailed output')
         .option('--output <file>', 'Output file path')
@@ -133,6 +138,7 @@ class PlatformCommandBuilder {
         .option('--file <path>', 'Input file path');
     } else if (this.action === 'export') {
       return this
+        .option('--project <name>', 'Project name to use')
         .option('--sandbox', 'Use sandbox environment')
         .option('--verbose', 'Show detailed output')
         .option('--output <file>', 'Output file path')
@@ -140,6 +146,7 @@ class PlatformCommandBuilder {
         .option('--download <jobId>', 'Download results from a completed job');
     } else if (this.action === 'import') {
       return this
+        .option('--project <name>', 'Project name to use')
         .option('--sandbox', 'Use sandbox environment')
         .option('--verbose', 'Show detailed output')
         .option('--output <file>', 'Output file path')
@@ -150,6 +157,7 @@ class PlatformCommandBuilder {
     } else {
       // For other actions, include all common options
       return this
+        .option('--project <name>', 'Project name to use')
         .option('--sandbox', 'Use sandbox environment')
         .option('--verbose', 'Show detailed output')
         .option('--output <file>', 'Output file path')
@@ -193,8 +201,21 @@ class PlatformCommandBuilder {
   }
 
   async setupApi(options) {
-    const apiKey = await checkAndPromptForApiKey(options.sandbox);
-    return { apiKey };
+    // Get API key using the new project-based system
+    let apiKey;
+    
+    try {
+      // Try to use project-based configuration first
+      apiKey = getProjectApiKey(options, options.sandbox);
+    } catch (error) {
+      // Fall back to the old environment variable method for backward compatibility
+      apiKey = await checkAndPromptForApiKey(options.sandbox);
+    }
+
+    // Create API client
+    const apiClient = new ApiClient(apiKey, options);
+
+    return { apiKey, apiClient };
   }
 }
 

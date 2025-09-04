@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { CreateChangeOrderCommand } = require('../../services/builder');
 const { activateOrder } = require('../../utils');
+const { getProjectApiKey } = require('../../utils/projectApiKeyUtils');
 
 /**
  * Creates a new change order using the Nue Self-Service API
@@ -27,7 +28,8 @@ module.exports = function(program) {
         // API URL is the same for all environments, only the API key changes
         const apiBaseUrl = process.env.NUE_API_URL || 'https://api.nue.io';
         
-        const { apiKey } = await command.setupApi(options);
+        // Get API key for the current project context
+        const apiKey = getProjectApiKey(options, options.sandbox);
         
         if (options.verbose) {
           console.log(chalk.gray('Change order payload:'));
@@ -84,13 +86,13 @@ module.exports = function(program) {
           } catch (error) {
             console.error(chalk.red('Auto-activation failed, but change order was created successfully.'));
             console.error(chalk.red('You can activate the change order manually using:'));
-            console.error(chalk.red(`nue activate-change-order ${changeOrderId}${options.sandbox ? ' --sandbox' : ''}`));
+            console.error(chalk.red(`nue activate-change-order ${changeOrderId}${options.sandbox ? ' --sandbox' : ''}${options.project ? ` --project ${options.project}` : ''}`));
             process.exit(1);
           }
         } else if (changeOrderId) {
           // Always show how to activate the change order if it wasn't auto-activated
           console.log(chalk.blue(`To activate this change order, run:`));
-          console.log(chalk.blue(`nue activate-change-order ${changeOrderId}${options.sandbox ? ' --sandbox' : ''}`));
+          console.log(chalk.blue(`nue activate-change-order ${changeOrderId}${options.sandbox ? ' --sandbox' : ''}${options.project ? ` --project ${options.project}` : ''}`));
         }
         
         return changeOrderId;

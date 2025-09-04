@@ -1,6 +1,11 @@
-const { checkAndPromptForApiKey, ApiClient } = require('../../utils');
-const Validator = require('../validator');
-const { Logger, ErrorHandler } = require('../../utils');
+const { program } = require('commander');
+const { 
+  checkAndPromptForApiKey, 
+  ApiClient, 
+  Validator, 
+  ErrorHandler,
+  getProjectApiKey 
+} = require('../../utils');
 
 /**
  * Base command class that provides consistent structure and common functionality
@@ -44,6 +49,7 @@ class BaseCommand {
    */
   addCommonOptions() {
     return this
+      .option('--project <name>', 'Project name to use')
       .option('--sandbox', 'Use sandbox environment', false)
       .option('--verbose', 'Show detailed output information', false)
       .option('--timeout <seconds>', 'Timeout for async operations in seconds', 300, parseInt);
@@ -167,8 +173,17 @@ class BaseCommand {
    * @returns {Object} - Object containing apiKey and apiClient
    */
   async setupApi(options) {
-    // Get API key
-    const apiKey = await checkAndPromptForApiKey(options.sandbox);
+    // Get API key using the new project-based system
+    let apiKey;
+    
+    try {
+      // Try to use project-based configuration first
+      apiKey = getProjectApiKey(options, options.sandbox);
+    } catch (error) {
+      // Fall back to the old environment variable method for backward compatibility
+      apiKey = await checkAndPromptForApiKey(options.sandbox);
+    }
+    
     Validator.validateApiKey(apiKey, options);
 
     // Create API client

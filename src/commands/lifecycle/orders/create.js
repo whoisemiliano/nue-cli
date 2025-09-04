@@ -1,10 +1,16 @@
 const chalk = require('chalk');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 const { PlatformCommandBuilder } = require('../../../services/platform-command');
 const { LifecycleManager } = require('../../../services/lifecycle-manager');
 const { ApiClientFactory } = require('../../../clients/api-client-factory');
 const { ObjectValidator } = require('../../../services/validators');
 const Logger = require('../../../utils/logger');
 const { checkAndPromptForApiKey } = require('../../../utils/apiKeyUtils');
+const { getProjectApiKey } = require('../../../utils/projectApiKeyUtils');
+const { ApiClient } = require('../../../utils/apiClient');
+const { activateOrder } = require('../../../utils');
 
 class CreateOrderCommand {
   constructor() {
@@ -97,11 +103,21 @@ class CreateOrderCommand {
   }
 
   async setupApiClient(options) {
-    const apiKey = await checkAndPromptForApiKey(options.sandbox);
-    return ApiClientFactory.createClient('lifecycle', 'rest', { 
-      apiKey,
-      sandbox: options.sandbox 
-    });
+    // Get API key using the new project-based system
+    let apiKey;
+    
+    try {
+      // Try to use project-based configuration first
+      apiKey = getProjectApiKey(options, options.sandbox);
+    } catch (error) {
+      // Fall back to the old environment variable method for backward compatibility
+      apiKey = await checkAndPromptForApiKey(options.sandbox);
+    }
+
+    // Create API client
+    const apiClient = new ApiClient(apiKey, options);
+
+    return apiClient;
   }
 
   extractOrderId(result) {

@@ -1,12 +1,9 @@
 const chalk = require('chalk');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+const ConfigManager = require('../../utils/configManager');
 
 class SetKeyCommand {
   constructor() {
-    this.configDir = path.join(os.homedir(), '.nue');
-    this.configFile = path.join(this.configDir, 'config.json');
+    this.configManager = new ConfigManager();
   }
 
   register(program) {
@@ -14,14 +11,25 @@ class SetKeyCommand {
       .command('set-key')
       .description('Set Nue API key for authentication')
       .option('--key <apiKey>', 'API key to set')
+      .option('--project <projectName>', 'Project name')
       .option('--environment <env>', 'Environment (production, sandbox)', 'production')
-      .option('--force', 'Overwrite existing key')
+      .option('--force', 'Overwrite existing key without prompting')
       .action(this.handleAction.bind(this));
   }
 
   async handleAction(options) {
     try {
       console.log(chalk.blue('Setting API key...'));
+
+      // Get project name from options or use 'default'
+      const projectName = options.project || 'default';
+      
+      // Validate environment
+      if (options.environment && !['production', 'sandbox'].includes(options.environment)) {
+        throw new Error('Environment must be either "production" or "sandbox"');
+      }
+
+      const environment = options.environment || 'production';
 
       // Get API key from options or prompt
       let apiKey = options.key;
@@ -33,7 +41,7 @@ class SetKeyCommand {
         });
 
         apiKey = await new Promise((resolve) => {
-          rl.question('Enter your Nue API key: ', (answer) => {
+          rl.question(`Enter your Nue API key for ${projectName}:${environment}: `, (answer) => {
             rl.close();
             resolve(answer.trim());
           });
@@ -44,54 +52,82 @@ class SetKeyCommand {
         throw new Error('API key is required');
       }
 
-      // Validate API key format (basic validation)
-      if (apiKey.length < 10) {
+      // Validate API key format
+      if (!this.configManager.validateApiKey(apiKey)) {
         throw new Error('API key appears to be invalid (too short)');
       }
 
-      // Ensure config directory exists
-      if (!fs.existsSync(this.configDir)) {
-        fs.mkdirSync(this.configDir, { recursive: true });
-      }
-
-      // Load existing config
-      let config = {};
-      if (fs.existsSync(this.configFile)) {
-        try {
-          const configData = fs.readFileSync(this.configFile, 'utf8');
-          config = JSON.parse(configData);
-        } catch (error) {
-          console.warn(chalk.yellow('Warning: Could not read existing config file'));
+      // Check if configuration already exists
+      if (this.configManager.environmentExists(projectName, environment) && !options.force) {
+        console.log(chalk.yellow(`Configuration for ${projectName}:${environment} already exists.`));
+        
+        const shouldOverwrite = await this.configManager.promptForOverwrite(projectName, environment);
+        if (!shouldOverwrite) {
+          console.log(chalk.blue('Operation cancelled.'));
+          return;
         }
       }
 
-      // Check if key already exists
-      if (config.apiKeys && config.apiKeys[options.environment] && !options.force) {
-        console.error(chalk.red(`API key for ${options.environment} environment already exists. Use --force to overwrite.`));
-        process.exit(1);
-      }
+      // Set the API key
+      this.configManager.setApiKey(projectName, environment, apiKey, true);
 
-      // Update config
-      if (!config.apiKeys) {
-        config.apiKeys = {};
-      }
-      config.apiKeys[options.environment] = apiKey;
-      config.defaultEnvironment = options.environment;
+      console.log(chalk.green(`API key set successfully for ${projectName}:${environment}!`));
+      
+      // Show current project status
+      this.showProjectStatus(projectName);
 
-      // Save config
-      fs.writeFileSync(this.configFile, JSON.stringify(config, null, 2));
-
-      console.log(chalk.green(`API key set successfully for ${options.environment} environment!`));
-      console.log(chalk.blue(`Config saved to: ${this.configFile}`));
-
-      // Show usage example
-      console.log(chalk.blue('\nYou can now use the CLI with commands like:'));
-      console.log(chalk.gray('nue lifecycle customers create --json \'{"name": "Acme Corp"}\''));
-      console.log(chalk.gray('nue platform metadata export --object-type customers'));
+      // Show usage examples
+      this.showUsageExamples(projectName, environment);
 
     } catch (error) {
       console.error(chalk.red('Failed to set API key:'), error.message);
       process.exit(1);
+    }
+  }
+
+  /**
+   * Show current project status
+   * @param {string} projectName - Project name
+   */
+  showProjectStatus(projectName) {
+    const projects = this.configManager.getAllProjects();
+    const project = projects[projectName];
+    
+    if (project) {
+      console.log(chalk.blue(`\nProject: ${projectName}`));
+      console.log(chalk.gray('Environments:'));
+      
+      if (project.environments.production) {
+        console.log(chalk.green('  ✓ production'));
+      } else {
+        console.log(chalk.red('  ✗ production'));
+      }
+      
+      if (project.environments.sandbox) {
+        console.log(chalk.green('  ✓ sandbox'));
+      } else {
+        console.log(chalk.red('  ✗ sandbox'));
+      }
+    }
+  }
+
+  /**
+   * Show usage examples
+   * @param {string} projectName - Project name
+   * @param {string} environment - Environment
+   */
+  showUsageExamples(projectName, environment) {
+    const envFlag = environment === 'sandbox' ? ' --sandbox' : '';
+    const projectFlag = projectName !== 'default' ? ` --project ${projectName}` : '';
+    
+    console.log(chalk.blue('\nYou can now use the CLI with commands like:'));
+    console.log(chalk.gray(`nue lifecycle customers create --json '{"name": "Acme Corp"}'${projectFlag}${envFlag}`));
+    console.log(chalk.gray(`nue platform metadata export --object-type customers${projectFlag}${envFlag}`));
+    
+    if (projectName === 'default') {
+      console.log(chalk.blue('\nYou can also use commands without --project flag (fallback to environment variables):'));
+      console.log(chalk.gray(`nue lifecycle customers create --json '{"name": "Acme Corp"}'${envFlag}`));
+      console.log(chalk.gray(`nue platform metadata export --object-type customers${envFlag}`));
     }
   }
 }

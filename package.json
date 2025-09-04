@@ -7,7 +7,10 @@
     "nue-new": "./src/index-new.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node tests/run-all-tests.js",
+    "test:compat": "node tests/test-backward-compatibility.js",
+    "test:config": "node tests/test-config.js",
+    "test:commands": "node tests/commandTestRunner.js",
     "start": "node src/index.js",
     "link": "npm link",
     "unlink": "npm unlink"

@@ -158,6 +158,11 @@ const commandConfigs = {
  */
 const optionConfigs = {
   common: {
+    project: {
+      flag: '--project <name>',
+      description: 'Project name to use',
+      defaultValue: null
+    },
     sandbox: {
       flag: '--sandbox',
       description: 'Use sandbox environment',

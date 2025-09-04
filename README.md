@@ -38,9 +38,59 @@ A command-line interface for interacting with the Nue Self-Service API.
 
 ## Configuration
 
-### Set API Keys
+### Project-Based Configuration (New!)
 
-You can set up your API keys easily using the CLI:
+The CLI now supports **optional** project-based configuration, allowing you to manage multiple customer projects with separate production and sandbox environments. This feature is completely backward compatible - existing workflows will continue to work unchanged.
+
+#### Quick Start
+
+```bash
+# Set up your first project
+nue set-key --project my-project-name
+
+# Add sandbox environment
+nue set-key --project my-project-name --environment sandbox
+
+# Set as default project
+nue set-default-project --project my-project-name
+
+# List all projects
+nue list-projects
+```
+
+#### Usage with Projects
+
+```bash
+# Use with specific project
+nue lifecycle customers create --project acme-corp --json '{"name": "Acme Corp"}'
+
+# Use with default project (no --project flag needed)
+nue lifecycle customers create --json '{"name": "Acme Corp"}'
+
+# Use sandbox environment
+nue lifecycle customers create --project acme-corp --sandbox --json '{"name": "Acme Corp"}'
+```
+
+#### Without Projects (Legacy Mode)
+
+If you prefer to use environment variables or don't need multiple projects:
+
+```bash
+# These commands will use your environment variables
+nue lifecycle customers create --json '{"name": "Acme Corp"}'
+nue platform metadata export --object-type customers
+
+# Or with sandbox
+nue lifecycle customers create --sandbox --json '{"name": "Acme Corp"}'
+```
+
+**Note**: The `--project` flag is completely optional. If you don't specify it, the CLI will use your existing environment variables (`NUE_API_KEY`, `NUE_SANDBOX_API_KEY`).
+
+For detailed information, see [Project Configuration Documentation](docs/project-configuration.md).
+
+### Legacy API Key Configuration
+
+You can still set up your API keys using the legacy method:
 
 ```bash
 # Set production API key interactively

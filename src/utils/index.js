@@ -1,4 +1,7 @@
 // Utils module barrel exports
+const projectApiKeyUtils = require('./projectApiKeyUtils');
+const configManager = require('./configManager');
+
 module.exports = {
   // Logging utilities
   Logger: require('./logger'),
@@ -22,5 +25,9 @@ module.exports = {
   ...require('./apiKeyUtils'),
   
   // Order utilities
-  ...require('./orderUtils')
+  ...require('./orderUtils'),
+  
+  // Project configuration
+  ...projectApiKeyUtils,
+  ConfigManager: configManager
 }; 
